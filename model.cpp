@@ -83,7 +83,7 @@ TGAColor Model::diffuse(Vec2i uv) {
 
 }
 TGAColor Model::diffuse(Vec2f uv) {
-    return diffuse(Vec2i(uv.x*diffusemap_.get_width(), uv.y*diffusemap_.get_height()));
+    return diffusemap_.get(uv.x*diffusemap_.get_width(), uv.y*diffusemap_.get_height());
 }
 
 
