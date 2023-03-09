@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:44:57
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-08 23:39:34
+ * @LastEditTime: 2023-03-10 00:46:39
  */
 #ifndef __IMAGE_H__
 #define __IMAGE_H__
@@ -63,6 +63,15 @@ struct TGAColor {
 		}
 		return *this;
 	}
+	TGAColor operator *(float intensity) const {
+        TGAColor res = *this;
+        intensity = (intensity>1.f?1.f:(intensity<0.f?0.f:intensity));
+        res.r *=intensity;
+        res.b *= intensity;
+        res.g *= intensity;
+        res.a *= intensity;
+        return res;
+    }
 };
 
 

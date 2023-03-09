@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-09 18:01:00
+ * @LastEditTime: 2023-03-10 01:01:13
  */
 #include "my_gl.h"
 
@@ -116,7 +116,19 @@ Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
         return Vec3f(1.f-(u.x+u.y)/u.z, u.y/u.z, u.x/u.z);
     return Vec3f(-1,1,1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
 }
-
+//计算质心坐标
+Vec3f barycentric(Vec2f A, Vec2f B, Vec2f C, Vec2f P) {
+    Vec3f s[2];
+    for (int i=2; i--; ) {
+        s[i][0] = C[i]-A[i];
+        s[i][1] = B[i]-A[i];
+        s[i][2] = A[i]-P[i];
+    }
+    Vec3f u = cross(s[0], s[1]);
+    if (std::abs(u[2])>1e-2) 
+        return Vec3f(1.f-(u.x+u.y)/u.z, u.y/u.z, u.x/u.z);
+    return Vec3f(-1,1,1);
+}
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) { 
     bool steep = false;
     if (std::abs(x0-x1)<std::abs(y0-y1)) { 
@@ -173,22 +185,22 @@ void triangle(std::vector<Vec3i> &face, TGAImage &image, float intensity, float 
     float ity0,ity1,ity2;
     for (int j=0; j<3; j++) {
             Vec3f v = model->vert(face[j][0]);
+            Vec3f vn = model->vn(face[j][2]);
             if(j == 0) {
                 t0 = m2v(ViewPort*Projection*ModelView*v2m(v));
                 uv0 = model->get_uv(face[j][1]);
-                ity0 = dot(v.normalize(), -light_dir);
+                ity0 = dot(vn.normalize(), -light_dir);
             }
             if(j == 1) {
                 t1 = m2v(ViewPort*Projection*ModelView*v2m(v));
                 uv1 = model->get_uv(face[j][1]);
-                ity1 = dot(v.normalize(), -light_dir);
+                ity1 = dot(vn.normalize(), -light_dir);
 
             }
             if(j == 2) {
                 t2 = m2v(ViewPort*Projection*ModelView*v2m(v));
                 uv2 = model->get_uv(face[j][1]);
-                ity2 = dot(v.normalize(), -light_dir);
-
+                ity2 = dot(vn.normalize(), -light_dir);
             }
         }
     if (t0.y==t1.y && t0.y==t2.y) return; // i dont care about degenerate triangles
@@ -215,11 +227,53 @@ void triangle(std::vector<Vec3i> &face, TGAImage &image, float intensity, float 
             Vec2i uvP =     uvA +   (uvB-uvA)*phi;
             int idx = P.x+P.y*width;
             float ityP =    ityA  + (ityB-ityA)*phi;
-            //ityP = std::min(1.f, std::abs(ityP)+0.01f);
+            ityP = std::min(1.f, std::abs(ityP)+0.01f);
             if (zbuffer[idx]<P.z) {
                 zbuffer[idx] = P.z;
                 TGAColor color = model->diffuse(uvP);
                 image.set(P.x, P.y, TGAColor(color.r*ityP, color.g*ityP, color.b*ityP));
+            }
+        }
+    }
+}
+
+//绘制三角形
+void triangle(Vec4f *pts, IShader &shader, TGAImage &image, TGAImage &zbuffer) {
+    //初始化三角形边界框
+    Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
+    Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<2; j++) {
+            //这里pts除以了最后一个分量，实现了透视中的缩放，所以作为边界框
+            bboxmin[j] = std::min(bboxmin[j], pts[i][j]/pts[i][3]);
+            bboxmax[j] = std::max(bboxmax[j], pts[i][j]/pts[i][3]);
+        }
+    }
+    //当前像素坐标P，颜色color
+    Vec2i P;
+    TGAColor color;
+    //遍历边界框中的每一个像素
+    for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
+        for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
+            //c为当前P对应的质心坐标
+            //这里pts除以了最后一个分量，实现了透视中的缩放，所以用于判断P是否在三角形内
+            Vec3f c = barycentric(proj<2>(pts[0]/pts[0][3]), proj<2>(pts[1]/pts[1][3]), proj<2>(pts[2]/pts[2][3]), proj<2>(P));
+            //插值计算P的zbuffer
+            //pts[i]为三角形的三个顶点
+            //pts[i][2]为三角形的z信息(0~255)
+            //pts[i][3]为三角形的投影系数(1-z/c)
+            
+            float z_P = (pts[0][2]/ pts[0][3])*c.x + (pts[0][2] / pts[1][3]) *c.y + (pts[0][2] / pts[2][3]) *c.z;
+            int frag_depth = std::max(0, std::min(255, int(z_P+.5)));
+            //P的任一质心分量小于0或者zbuffer小于已有zbuffer，不渲染
+            if (c.x<0 || c.y<0 || c.z<0 || zbuffer.get(P.x, P.y).r>frag_depth) continue;
+            //调用片元着色器计算当前像素颜色
+            bool discard = shader.fragment(c, color);
+            if (!discard) {
+                //zbuffer
+                zbuffer.set(P.x, P.y, TGAColor(frag_depth,frag_depth,frag_depth));
+                //为像素设置颜色
+                image.set(P.x, P.y, color);
             }
         }
     }

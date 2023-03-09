@@ -64,6 +64,13 @@ std::vector<Vec3i> Model::face(int idx) {
 Vec3f Model::vert(int i) {
     return verts_[i];
 }
+Vec3f Model::vert(int iface, int nvert){
+    int idx = faces_[iface][nvert][0];
+    return verts_[idx];
+}
+Vec3f Model::vn(int idx){
+    return norms_[idx];
+}
 Vec2f Model::get_uv(int i){
     //return uv_[i];
     return Vec2i(uv_[i].x*diffusemap_.get_width(), uv_[i].y*diffusemap_.get_height());
@@ -92,5 +99,11 @@ Vec2i Model::uv(int iface, int nvert) {
     int idx = faces_[iface][nvert][1];
     return Vec2i(uv_[idx].x*diffusemap_.get_width(), uv_[idx].y*diffusemap_.get_height());
 }
+
+Vec3f Model::normal(int iface, int nthvert) {
+    int idx = faces_[iface][nthvert][2];
+    return norms_[idx].normalize();
+}
+
 
 

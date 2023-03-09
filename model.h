@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 22:28:51
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-09 00:41:03
+ * @LastEditTime: 2023-03-10 00:04:28
  */
 #ifndef __MODEL_H__
 #define __MODEL_H__
@@ -25,8 +25,11 @@ public:
 	int nverts();
 	int nfaces();
 	Vec3f vert(int i);
+	Vec3f vert(int iface, int nvert);
+	Vec3f vn(int idx);
 	Vec2f get_uv(int i);
 	Vec2i uv(int iface, int nvert);
+	Vec3f normal(int iface, int nvert);
 	TGAColor diffuse(Vec2i uv);
 	TGAColor diffuse(Vec2f uv);
 	std::vector<Vec3i> face(int idx);

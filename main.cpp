@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-09 17:56:35
+ * @LastEditTime: 2023-03-10 01:08:08
  */
 #include <vector>
 #include <cmath>
@@ -22,8 +22,8 @@ int height = 800;
 int depth = 255;
 Matrix Projection,ViewPort, ModelView;
 int *zbuffer = NULL;
-Vec3f light_dir = Vec3f(0,0,-1);
-Vec3f eye(2,1,3);
+Vec3f light_dir = Vec3f(-1,-1,-1).normalize();
+Vec3f eye(0.5,1,2);
 Vec3f center(0,0,1);
 Vec3f camera(0,0,3);
 int main(int argc, char** argv) {
