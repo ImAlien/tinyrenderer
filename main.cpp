@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-09 15:55:35
+ * @LastEditTime: 2023-03-09 17:56:35
  */
 #include <vector>
 #include <cmath>
@@ -20,8 +20,11 @@ Model *model = NULL;
 int width  = 800;
 int height = 800;
 int depth = 255;
+Matrix Projection,ViewPort, ModelView;
 int *zbuffer = NULL;
-Vec3f light_dir(0,0,-1);
+Vec3f light_dir = Vec3f(0,0,-1);
+Vec3f eye(2,1,3);
+Vec3f center(0,0,1);
 Vec3f camera(0,0,3);
 int main(int argc, char** argv) {
     if (2==argc) {
@@ -35,9 +38,15 @@ int main(int argc, char** argv) {
     
     
     TGAImage image(width, height, TGAImage::RGB);
-    Matrix Projection = Matrix::identity();
-    Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
-    Projection[3][2] = -1.f/camera.z;
+    ModelView  = lookat(eye, center, Vec3f(0,1,0));
+    Projection = Matrix::identity();
+    ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
+    Projection[3][2] = -1.f/(eye-center).norm();
+    std::cerr << ModelView << std::endl;
+        std::cerr << Projection << std::endl;
+        std::cerr << ViewPort << std::endl;
+        Matrix z = (ViewPort*Projection*ModelView);
+        std::cerr << z << std::endl;
     for (int i=0; i<model->nfaces(); i++) {
         // traverse all face
         // three points' index;
@@ -52,13 +61,13 @@ int main(int argc, char** argv) {
         Vec3f n = cross((world_coords[2]-world_coords[0]),(world_coords[1]-world_coords[0]));
         n.normalize();
         float intensity = dot(n, light_dir);
-        if (intensity>0) {
+        //if (intensity>0) {
             Vec2i uv[3];
             for(int j = 0; j < 3; j ++) uv[j] = model->uv(i, j);
             //triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
             //triangle_zbuffer(face, zbuffer, image, intensity);
-            triangle(screen_coords[0], screen_coords[1], screen_coords[2], uv[0], uv[1], uv[2], image, intensity, zbuffer);
-        }
+            triangle(face, image, intensity, zbuffer);
+        //}
     }
     // for (int i=0; i<model->nfaces(); i++) { 
 	//     std::vector<int> face = model->face(i); 

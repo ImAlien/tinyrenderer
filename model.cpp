@@ -65,7 +65,8 @@ Vec3f Model::vert(int i) {
     return verts_[i];
 }
 Vec2f Model::get_uv(int i){
-    return uv_[i];
+    //return uv_[i];
+    return Vec2i(uv_[i].x*diffusemap_.get_width(), uv_[i].y*diffusemap_.get_height());
 }
 
 void Model::load_texture(std::string filename, const char *suffix, TGAImage &img) {

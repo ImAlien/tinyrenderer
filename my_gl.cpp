@@ -2,29 +2,57 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-09 15:47:10
+ * @LastEditTime: 2023-03-09 18:01:00
  */
 #include "my_gl.h"
 
 extern Model *model;
 extern Vec3f camera;
+TGAImage image(width, height, TGAImage::RGB);
+extern Matrix Projection;
+extern Matrix ViewPort, ModelView;
+extern Vec3f light_dir;
 
-Matrix lookat(Vec3f eye, Vec3f center, Vec3f up)
-{
-	Vec3f z = (eye - center).normalize();
-	Vec3f x = cross(up, z).normalize();
-	Vec3f y = cross(z, x).normalize();
+// Matrix lookat(Vec3f eye, Vec3f center, Vec3f up)
+// {
+// 	Vec3f z = (eye - center).normalize();
+// 	Vec3f x = cross(up, z).normalize();
+// 	Vec3f y = cross(z, x).normalize();
 
-	Matrix rotate = Matrix::identity();
-	Matrix translate = Matrix::identity();
-	for (int i = 0; i < 3; ++i)
-	{
-		rotate[0][i] = x[i];
-		rotate[1][i] = y[i];
-		rotate[2][i] = z[i];
-		translate[i][3] = -eye[i];
-	}
-	return rotate * translate;
+// 	Matrix rotate = Matrix::identity();
+// 	Matrix translate = Matrix::identity();
+// 	for (int i = 0; i < 3; ++i)
+// 	{
+// 		rotate[0][i] = x[i];
+// 		rotate[1][i] = y[i];
+// 		rotate[2][i] = z[i];
+// 		translate[i][3] = -eye[i];
+// 	}
+// 	return rotate * translate;
+// }
+Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
+    Vec3f z = (eye-center).normalize();
+    Vec3f x = cross(up,z).normalize();
+    Vec3f y = cross(z, x).normalize();
+    Matrix rotation = Matrix::identity();
+    Matrix translation = Matrix::identity();
+    //***矩阵的第四列是用于平移的。因为观察位置从原点变为了center，所以需要将物体平移-center***
+    for (int i = 0; i < 3; i++) {
+        rotation[i][3] = -center[i];
+    }
+    //正交矩阵的逆 = 正交矩阵的转置
+    //矩阵的第一行即是现在的x
+    //矩阵的第二行即是现在的y
+    //矩阵的第三行即是现在的z
+    //***矩阵的三阶子矩阵是当前视线旋转矩阵的逆矩阵***
+    for (int i = 0; i < 3; i++) {
+        rotation[0][i] = x[i];
+        rotation[1][i] = y[i];
+        rotation[2][i] = z[i];
+    }
+    //这样乘法的效果是先平移物体，再旋转
+    Matrix res = rotation*translation;
+    return res;
 }
 
 Matrix projection(double fov, double ratio, double n, double f)
@@ -90,7 +118,7 @@ Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
 }
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) { 
-    bool steep = false; 
+    bool steep = false;
     if (std::abs(x0-x1)<std::abs(y0-y1)) { 
         std::swap(x0, y0); 
         std::swap(x1, y1); 
@@ -139,7 +167,30 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
 //         }
 //     }
 // }
-void triangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2i uv0, Vec2i uv1, Vec2i uv2, TGAImage &image, float intensity, float *zbuffer) {
+void triangle(std::vector<Vec3i> &face, TGAImage &image, float intensity, float *zbuffer) {
+    Vec3i t0, t1,  t2;
+    Vec2i uv0, uv1,  uv2;
+    float ity0,ity1,ity2;
+    for (int j=0; j<3; j++) {
+            Vec3f v = model->vert(face[j][0]);
+            if(j == 0) {
+                t0 = m2v(ViewPort*Projection*ModelView*v2m(v));
+                uv0 = model->get_uv(face[j][1]);
+                ity0 = dot(v.normalize(), -light_dir);
+            }
+            if(j == 1) {
+                t1 = m2v(ViewPort*Projection*ModelView*v2m(v));
+                uv1 = model->get_uv(face[j][1]);
+                ity1 = dot(v.normalize(), -light_dir);
+
+            }
+            if(j == 2) {
+                t2 = m2v(ViewPort*Projection*ModelView*v2m(v));
+                uv2 = model->get_uv(face[j][1]);
+                ity2 = dot(v.normalize(), -light_dir);
+
+            }
+        }
     if (t0.y==t1.y && t0.y==t2.y) return; // i dont care about degenerate triangles
     if (t0.y>t1.y) { std::swap(t0, t1); std::swap(uv0, uv1); }
     if (t0.y>t2.y) { std::swap(t0, t2); std::swap(uv0, uv2); }
@@ -153,18 +204,22 @@ void triangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2i uv0, Vec2i uv1, Vec2i uv2, TGA
         float beta  = (float)(i-(second_half ? t1.y-t0.y : 0))/segment_height; // be careful: with above conditions no division by zero here
         Vec3i A   =               t0  + convertInt(Vec3f(t2-t0  )*alpha);
         Vec3i B   = second_half ? t1  + convertInt(Vec3f(t2-t1  )*beta) : t0  + convertInt(Vec3f(t1-t0  )*beta);
+        float ityA =               ity0 +   (ity2-ity0)*alpha;
+        float ityB = second_half ? ity1 +   (ity2-ity1)*beta : ity0 +   (ity1-ity0)*beta;
         Vec2i uvA =               uv0 +      (uv2-uv0)*alpha;
         Vec2i uvB = second_half ? uv1 +      (uv2-uv1)*beta : uv0 +      (uv1-uv0)*beta;
-        if (A.x>B.x) { std::swap(A, B); std::swap(uvA, uvB); }
+        if (A.x>B.x) { std::swap(A, B); std::swap(uvA, uvB); std::swap(ityA,ityB);}
         for (int j=A.x; j<=B.x; j++) {
             float phi = B.x==A.x ? 1. : (float)(j-A.x)/(float)(B.x-A.x);
             Vec3i   P = Vec3f(A) + Vec3f(B-A)*phi;
             Vec2i uvP =     uvA +   (uvB-uvA)*phi;
             int idx = P.x+P.y*width;
+            float ityP =    ityA  + (ityB-ityA)*phi;
+            //ityP = std::min(1.f, std::abs(ityP)+0.01f);
             if (zbuffer[idx]<P.z) {
                 zbuffer[idx] = P.z;
                 TGAColor color = model->diffuse(uvP);
-                image.set(P.x, P.y, TGAColor(color.r*intensity, color.g*intensity, color.b*intensity));
+                image.set(P.x, P.y, TGAColor(color.r*ityP, color.g*ityP, color.b*ityP));
             }
         }
     }
