@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-08 16:56:25
+ * @LastEditTime: 2023-03-09 10:23:13
  */
 #include <vector>
 #include <cmath>
@@ -10,14 +10,17 @@
 #include "tgaimage.h"
 #include "model.h"
 #include "geometry.h"
+#include "def.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green = TGAColor(0,   255, 0,   255);
 Model *model = NULL;
-const int width  = 800;
-const int height = 800;
-
+int width  = 800;
+int height = 800;
+int *zbuffer = NULL;
+Vec3f light_dir(0,0,-1);
+Vec3f camera(0,0,3);
 
 // void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
 //     for (float t=0.; t<1.; t+=.1) {
@@ -174,7 +177,13 @@ void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
         }
     }
 }
-void triangle_zbuffer(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
+void triangle_zbuffer(std::vector<Vec3i> face, float *zbuffer, TGAImage &image, float intensity) {
+    Vec3f pts[3];
+    Vec2f uvs[3];
+    for (int i=0; i<3; i++) {
+    pts[i] = world2screen(model->vert(face[i][0]));
+    uvs[i] = model->get_uv(face[i][1]);
+    }
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
     Vec2f clamp(image.get_width()-1, image.get_height()-1);
@@ -190,16 +199,20 @@ void triangle_zbuffer(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor colo
             Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
             if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
             P.z = 0;
-            for (int i=0; i<3; i++) P.z += pts[i][2]*bc_screen[i];
+            // z can be calculated by barycentric 
+            Vec2f uvf;
+            for (int i=0; i<3; i++) {
+                P.z += pts[i][2]*bc_screen[i];
+                uvf[0] += uvs[i][0] * bc_screen[i];
+                uvf[1] += uvs[i][1] * bc_screen[i];
+            }
             if (zbuffer[int(P.x+P.y*width)]<P.z) {
                 zbuffer[int(P.x+P.y*width)] = P.z;
-                image.set(P.x, P.y, color);
+                TGAColor color = model->diffuse(uvf);
+                image.set(P.x, P.y, TGAColor(color.r*intensity, color.g*intensity, color.b*intensity));
             }
         }
     }
-}
-Vec3f world2screen(Vec3f v) {
-    return Vec3f(int((v.x+1.)*width/2.+.5), int((v.y+1.)*height/2.+.5), v.z);
 }
 
 int main(int argc, char** argv) {
@@ -208,15 +221,19 @@ int main(int argc, char** argv) {
     } else {
         model = new Model("obj/african_head.obj");
     }
+    // zbuffer
     float *zbuffer = new float[width*height];
+    //for(int i = 0; i < width * height; i ++) zbuffer[i] = -1e9;
     TGAImage image(width, height, TGAImage::RGB);
-    Vec3f light_dir(0,0,-1);
+    
     for (int i=0; i<model->nfaces(); i++) {
-        std::vector<int> face = model->face(i);
+        // traverse all face
+        // three points' index;
+        std::vector<Vec3i> face = model->face(i);
         Vec2i screen_coords[3];
         Vec3f world_coords[3];
         for (int j=0; j<3; j++) {
-            Vec3f v = model->vert(face[j]);
+            Vec3f v = model->vert(face[j][0]);
             screen_coords[j] = Vec2i((v.x+1.)*width/2., (v.y+1.)*height/2.);
             world_coords[j]  = v;
         }
@@ -224,10 +241,8 @@ int main(int argc, char** argv) {
         n.normalize();
         float intensity = n*light_dir;
         if (intensity>0) {
-            Vec3f pts[3];
-            for (int i=0; i<3; i++) pts[i] = world2screen(model->vert(face[i]));
             //triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
-            triangle_zbuffer(pts, zbuffer, image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
+            triangle_zbuffer(face, zbuffer, image, intensity);
         }
     }
     // for (int i=0; i<model->nfaces(); i++) { 
@@ -243,6 +258,7 @@ int main(int argc, char** argv) {
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     image.write_tga_file("output.tga");
     delete model;
+    delete[] zbuffer;
     return 0;
 }
 
