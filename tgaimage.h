@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:44:57
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-08 23:39:34
+ * @LastEditTime: 2023-03-10 15:03:14
  */
 #ifndef __IMAGE_H__
 #define __IMAGE_H__
@@ -34,13 +34,13 @@ struct TGAColor {
 			unsigned char b, g, r, a;
 		};
 		unsigned char raw[4];
-		unsigned int val;
+		unsigned char val;
 	};
 	int bytespp;
 
 	TGAColor() : val(0), bytespp(1) {
 	}
-
+	TGAColor(unsigned char R):b(R), g(R),r(R), a(R), bytespp(4){}
 	TGAColor(unsigned char R, unsigned char G, unsigned char B, unsigned char A=255) : b(B), g(G), r(R), a(A), bytespp(4) {
 	}
 
@@ -62,6 +62,9 @@ struct TGAColor {
 			val = c.val;
 		}
 		return *this;
+	}
+	unsigned char operator [](const int i){
+		return raw[i];
 	}
 };
 

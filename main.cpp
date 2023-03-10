@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-09 14:32:32
+ * @LastEditTime: 2023-03-10 15:10:00
  */
 #include <vector>
 #include <cmath>
@@ -17,11 +17,17 @@ const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green = TGAColor(0,   255, 0,   255);
 Model *model = NULL;
+Matrix Projection,ViewPort, ModelView;
 int width  = 800;
 int height = 800;
+int depth = 255;
 int *zbuffer = NULL;
 Vec3f light_dir(0,0,-1);
+Vec3f eye(2,1,2);
+Vec3f center(0,0,0);
 Vec3f camera(0,0,3);
+
+
 int main(int argc, char** argv) {
     if (2==argc) {
         model = new Model(argv[1]);
@@ -29,10 +35,15 @@ int main(int argc, char** argv) {
         model = new Model("obj/african_head.obj");
     }
     // zbuffer
-    float *zbuffer = new float[width*height];
+    //float *zbuffer = new float[width*height];
     //for(int i = 0; i < width * height; i ++) zbuffer[i] = -1e9;
     TGAImage image(width, height, TGAImage::RGB);
+    TGAImage zbuffer(width, height, TGAImage::RGB);
     
+    ModelView  = lookat(eye, center, Vec3f(0,1,0));
+    Projection = Matrix::identity();
+    ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
+    Projection[3][2] = -1.f/(eye-center).norm();
     for (int i=0; i<model->nfaces(); i++) {
         // traverse all face
         // three points' index;
@@ -64,8 +75,8 @@ int main(int argc, char** argv) {
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     image.write_tga_file("output.tga");
+    zbuffer.write_tga_file("zbuffer.tga");
     delete model;
-    delete[] zbuffer;
     return 0;
 }
 

@@ -2,11 +2,49 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-09 14:29:01
+ * @LastEditTime: 2023-03-10 15:06:53
  */
 #include "my_gl.h"
 
 extern Model *model;
+extern Matrix Projection,ViewPort, ModelView;
+extern int depth;
+
+Matrix viewport(int x, int y, int w, int h) {
+    Matrix m = Matrix::identity();
+    m[0][3] = x+w/2.f;
+    m[1][3] = y+h/2.f;
+    m[2][3] = depth/2.f;
+
+    m[0][0] = w/2.f;
+    m[1][1] = h/2.f;
+    m[2][2] = depth/2.f;
+    return m;
+}
+Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
+    Vec3f z = (eye-center).normalize();
+    Vec3f x = cross(up,z).normalize();
+    Vec3f y = cross(z, x).normalize();
+    Matrix rotation = Matrix::identity();
+    Matrix translation = Matrix::identity();
+    //***矩阵的第四列是用于平移的。因为观察位置从原点变为了center，所以需要将物体平移-center***
+    for (int i = 0; i < 3; i++) {
+        rotation[i][3] = -center[i];
+    }
+    //正交矩阵的逆 = 正交矩阵的转置
+    //矩阵的第一行即是现在的x
+    //矩阵的第二行即是现在的y
+    //矩阵的第三行即是现在的z
+    //***矩阵的三阶子矩阵是当前视线旋转矩阵的逆矩阵***
+    for (int i = 0; i < 3; i++) {
+        rotation[0][i] = x[i];
+        rotation[1][i] = y[i];
+        rotation[2][i] = z[i];
+    }
+    //这样乘法的效果是先平移物体，再旋转
+    Matrix res = rotation*translation;
+    return res;
+}
 
 Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
     Vec3f s[2];
@@ -71,12 +109,25 @@ void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
         }
     }
 }
-void triangle_zbuffer(std::vector<Vec3i> face, float *zbuffer, TGAImage &image, float intensity) {
+Vec3f m2v(Matrix m) {
+    return Vec3f(m[0][0]/m[3][0], m[1][0]/m[3][0], m[2][0]/m[3][0]);
+}
+
+Matrix v2m(Vec3f v) {
+    Matrix m;
+    m[0][0] = v.x;
+    m[1][0] = v.y;
+    m[2][0] = v.z;
+    m[3][0] = 1.f;
+    return m;
+}
+void triangle_zbuffer(std::vector<Vec3i> face, TGAImage& zbuffer, TGAImage &image, float intensity) {
     Vec3f pts[3];
     Vec2f uvs[3];
     for (int i=0; i<3; i++) {
-    pts[i] = world2screen(model->vert(face[i][0]));
-    uvs[i] = model->get_uv(face[i][1]);
+        const Vec3f &v = model->vert(face[i][0]);
+        pts[i] = m2v(ViewPort*Projection*ModelView*v2m(v));
+        uvs[i] = model->get_uv(face[i][1]);
     }
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
@@ -87,7 +138,7 @@ void triangle_zbuffer(std::vector<Vec3i> face, float *zbuffer, TGAImage &image, 
             bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
         }
     }
-    Vec3f P;
+    Vec3i P;
     for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
         for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
             Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
@@ -100,8 +151,8 @@ void triangle_zbuffer(std::vector<Vec3i> face, float *zbuffer, TGAImage &image, 
                 uvf[0] += uvs[i][0] * bc_screen[i];
                 uvf[1] += uvs[i][1] * bc_screen[i];
             }
-            if (zbuffer[int(P.x+P.y*width)]<P.z) {
-                zbuffer[int(P.x+P.y*width)] = P.z;
+            if (zbuffer.get(P.x, P.y)[0]<P.z) {
+                zbuffer.set(P.x, P.y,TGAColor(P.z ));
                 TGAColor color = model->diffuse(uvf);
                 image.set(P.x, P.y, TGAColor(color.r*intensity, color.g*intensity, color.b*intensity));
             }
