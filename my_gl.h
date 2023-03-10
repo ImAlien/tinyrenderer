@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:51
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 10:56:13
+ * @LastEditTime: 2023-03-10 11:35:27
  */
 #include "tgaimage.h"
 #include "geometry.h"
@@ -22,6 +22,7 @@ Matrix v2m(Vec3f v);
 Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P);
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color);
 void triangle_zbuffer(std::vector<Vec3i>& face, float *zbuffer, TGAImage &image, float intensity);
+void triangle_zbuffer(std::vector<Vec3i> &face, IShader& shader, TGAImage &image, float *zbuffer);
 void triangle(std::vector<Vec3i> &face,IShader& shader, TGAImage &image, float *zbuffer);
 void triangle(Vec4f *pts, IShader &shader, TGAImage &image, TGAImage &zbuffer);
 // struct IShader {

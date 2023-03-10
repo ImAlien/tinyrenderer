@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 10:56:48
+ * @LastEditTime: 2023-03-10 11:37:54
  */
 #include "my_gl.h"
 
@@ -181,9 +181,11 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
 // }
 void triangle(std::vector<Vec3i> &face, IShader& shader, TGAImage &image, float *zbuffer) {
     Vec3i t0, t1,  t2;
+    Vec4f pts[3];
     Vec2i uv0, uv1,  uv2;
     float ity0,ity1,ity2;
     for (int j=0; j<3; j++) {
+            pts[j] = shader.vertex(face, j);
             Vec3f v = model->vert(face[j][0]);
             Vec3f vn = model->vn(face[j][2]);
             if(j == 0) {
@@ -332,7 +334,50 @@ void triangle_zbuffer(std::vector<Vec3i> face, float *zbuffer, TGAImage &image, 
         }
     }
 }
-
+void triangle_zbuffer(std::vector<Vec3i> &face, IShader& shader, TGAImage &image, float *zbuffer){
+    Vec3f pts[3];
+    Vec2f uvs[3];
+    float itys[3];
+    for (int i=0; i<3; i++) {
+        Vec3f v = model->vert(face[i][0]);
+        pts[i] = m2v(ViewPort*Projection*ModelView*v2m(v));
+        //pts[i] = world2screen(model->vert(face[i][0]));
+        uvs[i] = model->get_uv(face[i][1]);
+        itys[i] = dot(model->vn(face[i][2]).normalize(), -light_dir);
+    }
+    Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
+    Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+    Vec2f clamp(image.get_width()-1, image.get_height()-1);
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<2; j++) {
+            bboxmin[j] = std::max(0.f,      std::min(bboxmin[j], pts[i][j]));
+            bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
+        }
+    }
+    Vec3f P;
+    for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
+        for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
+            Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
+            if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
+            P.z = 0;
+            // z can be calculated by barycentric 
+            Vec2f uvf;
+            float intensity = 0;
+            for (int i=0; i<3; i++) {
+                intensity += itys[i]*bc_screen[i];
+                P.z += pts[i][2]*bc_screen[i];
+                uvf[0] += uvs[i][0] * bc_screen[i];
+                uvf[1] += uvs[i][1] * bc_screen[i];
+            }
+            if (zbuffer[int(P.x+P.y*width)]<P.z) {
+                zbuffer[int(P.x+P.y*width)] = P.z;
+                TGAColor color = model->diffuse(uvf);
+                //image.set(P.x, P.y, TGAColor(color.r*intensity, color.g*intensity, color.b*intensity));
+                image.set(P.x, P.y, TGAColor(color.r*255, color.g*255, color.b*255));
+            }
+        }
+    }
+}
 void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color){
 	line(p0.x, p0.y, p1.x, p1.y,image, color);
 }
