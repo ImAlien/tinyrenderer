@@ -67,7 +67,9 @@ Vec3f Model::vert(int i) {
 Vec2f Model::get_uv(int i){
     return uv_[i];
 }
-
+Vec3f Model::vn(int idx){
+    return norms_[idx];
+}
 void Model::load_texture(std::string filename, const char *suffix, TGAImage &img) {
     std::string texfile(filename);
     size_t dot = texfile.find_last_of(".");

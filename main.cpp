@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 15:10:00
+ * @LastEditTime: 2023-03-10 15:57:51
  */
 #include <vector>
 #include <cmath>
@@ -22,9 +22,9 @@ int width  = 800;
 int height = 800;
 int depth = 255;
 int *zbuffer = NULL;
-Vec3f light_dir(0,0,-1);
-Vec3f eye(2,1,2);
-Vec3f center(0,0,0);
+Vec3f light_dir(-1,-1,-1);
+Vec3f eye(0.5,1,2);
+Vec3f center(0,0,1);
 Vec3f camera(0,0,3);
 
 

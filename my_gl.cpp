@@ -2,13 +2,14 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 15:06:53
+ * @LastEditTime: 2023-03-10 16:17:39
  */
 #include "my_gl.h"
 
 extern Model *model;
 extern Matrix Projection,ViewPort, ModelView;
 extern int depth;
+extern Vec3f light_dir;
 
 Matrix viewport(int x, int y, int w, int h) {
     Matrix m = Matrix::identity();
@@ -112,7 +113,9 @@ void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 Vec3f m2v(Matrix m) {
     return Vec3f(m[0][0]/m[3][0], m[1][0]/m[3][0], m[2][0]/m[3][0]);
 }
-
+Vec4f m2v4(Matrix m){
+    return Vec4f(m[0][0],m[1][0],m[2][0],m[3][0]);
+}
 Matrix v2m(Vec3f v) {
     Matrix m;
     m[0][0] = v.x;
@@ -123,11 +126,16 @@ Matrix v2m(Vec3f v) {
 }
 void triangle_zbuffer(std::vector<Vec3i> face, TGAImage& zbuffer, TGAImage &image, float intensity) {
     Vec3f pts[3];
+    Vec4f pt4[3];
     Vec2f uvs[3];
+    float itys[3];
     for (int i=0; i<3; i++) {
         const Vec3f &v = model->vert(face[i][0]);
         pts[i] = m2v(ViewPort*Projection*ModelView*v2m(v));
+        pt4[i] = m2v4(ViewPort*Projection*ModelView*v2m(v));
         uvs[i] = model->get_uv(face[i][1]);
+        Vec3f vn = model->vn(face[i][2]);
+        itys[i] = dot(vn.normalize(), -light_dir);
     }
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
@@ -142,19 +150,34 @@ void triangle_zbuffer(std::vector<Vec3i> face, TGAImage& zbuffer, TGAImage &imag
     for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
         for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
             Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
+            Vec3f c_revised;
+            for (int i = 0; i < 3; ++i)
+            {
+                //求α，β，γ,只需要除以pts第四个分量即可
+                c_revised[i] = bc_screen[i] / pt4[i][3];
+            }
+            float Z_n = 1. / (c_revised[0] + c_revised[1] + c_revised[2]);
+            for (int i = 0; i < 3; ++i)
+            {
+                //求正确透视下插值的系数
+                c_revised[i] *= Z_n;
+            }
+            bc_screen = c_revised;
             if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
             P.z = 0;
             // z can be calculated by barycentric 
             Vec2f uvf;
+            float tot_ity = 0;
             for (int i=0; i<3; i++) {
                 P.z += pts[i][2]*bc_screen[i];
                 uvf[0] += uvs[i][0] * bc_screen[i];
                 uvf[1] += uvs[i][1] * bc_screen[i];
+                tot_ity += itys[i]*bc_screen[i];
             }
             if (zbuffer.get(P.x, P.y)[0]<P.z) {
                 zbuffer.set(P.x, P.y,TGAColor(P.z ));
                 TGAColor color = model->diffuse(uvf);
-                image.set(P.x, P.y, TGAColor(color.r*intensity, color.g*intensity, color.b*intensity));
+                image.set(P.x, P.y, TGAColor(color.r*tot_ity, color.g*tot_ity, color.b*tot_ity));
             }
         }
     }
