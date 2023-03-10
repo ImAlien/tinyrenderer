@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 01:01:13
+ * @LastEditTime: 2023-03-10 10:56:48
  */
 #include "my_gl.h"
 
@@ -179,7 +179,7 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
 //         }
 //     }
 // }
-void triangle(std::vector<Vec3i> &face, TGAImage &image, float intensity, float *zbuffer) {
+void triangle(std::vector<Vec3i> &face, IShader& shader, TGAImage &image, float *zbuffer) {
     Vec3i t0, t1,  t2;
     Vec2i uv0, uv1,  uv2;
     float ity0,ity1,ity2;

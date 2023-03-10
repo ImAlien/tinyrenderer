@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 01:08:08
+ * @LastEditTime: 2023-03-10 11:07:12
  */
 #include <vector>
 #include <cmath>
@@ -12,6 +12,7 @@
 #include "geometry.h"
 #include "def.h"
 #include "my_gl.h"
+#include "shader.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
@@ -47,6 +48,7 @@ int main(int argc, char** argv) {
         std::cerr << ViewPort << std::endl;
         Matrix z = (ViewPort*Projection*ModelView);
         std::cerr << z << std::endl;
+    GouraudShader shader;
     for (int i=0; i<model->nfaces(); i++) {
         // traverse all face
         // three points' index;
@@ -66,7 +68,7 @@ int main(int argc, char** argv) {
             for(int j = 0; j < 3; j ++) uv[j] = model->uv(i, j);
             //triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
             //triangle_zbuffer(face, zbuffer, image, intensity);
-            triangle(face, image, intensity, zbuffer);
+            triangle(face, shader, image, zbuffer);
         //}
     }
     // for (int i=0; i<model->nfaces(); i++) { 
