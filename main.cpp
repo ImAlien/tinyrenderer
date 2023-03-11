@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-11 16:09:49
+ * @LastEditTime: 2023-03-11 17:15:03
  */
 #include <vector>
 #include <cmath>
@@ -13,7 +13,7 @@
 #include "def.h"
 #include "my_gl.h"
 #include "shader.h"
-
+#include <chrono>
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green = TGAColor(0,   255, 0,   255);
@@ -21,6 +21,7 @@ Model *model = NULL;
 Matrix Projection,ViewPort, ModelView;
 mat<4,4,float> uniform_M;   //  Projection*ModelView
 mat<4,4,float> uniform_MIT; // (Projection*ModelView).invert_transpose()
+mat<4,4,float> uniform_VPM; // (ViewPort*Projection*ModelView)
 int width  = 800;
 int height = 800;
 int depth = 255;
@@ -48,7 +49,10 @@ int main(int argc, char** argv) {
     Projection[3][2] = -1.f/(eye-center).norm();
     uniform_M   =  Projection*ModelView;
     uniform_MIT = (Projection*ModelView).invert_transpose();
+    uniform_VPM = ViewPort*uniform_M;
     GouraudShader shader;
+    std::cout << "渲染面数:"<<model->nfaces() << std::endl;
+    auto begintime = std::chrono::high_resolution_clock::now();
     for (int i=0; i<model->nfaces(); i++) {
         // traverse all face
         // three points' index;
@@ -63,11 +67,14 @@ int main(int argc, char** argv) {
         Vec3f n = cross((world_coords[2]-world_coords[0]),(world_coords[1]-world_coords[0]));
         n.normalize();
         float intensity = dot(n, light_dir);
-        //if (intensity>0) {
+        if (intensity>0) {
             //triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
             triangle_zbuffer(face, shader, zbuffer, image, intensity);
-        //}
+        }
     }
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - begintime);
+    std::cout << "函数运行时间：" << duration.count() << "ms" << std::endl;
     // for (int i=0; i<model->nfaces(); i++) { 
 	//     std::vector<int> face = model->face(i); 
 	//     Vec2i screen_coords[3]; 

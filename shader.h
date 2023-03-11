@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-11 10:20:49
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-11 16:22:18
+ * @LastEditTime: 2023-03-11 16:25:12
  */
 #ifndef SHADER_H
 #define SHADER_H
@@ -48,39 +48,39 @@ struct GouraudShader : public IShader {
     }
     //根据传入的质心坐标，颜色，以及varying_intensity计算出当前像素的颜色
     virtual bool fragment(Vec3f bar, TGAColor &color) {
-        Vec2f uv = varying_uv * bar;
-        TGAColor c = model->diffuse(uv);
-        //float intensity = dot(varying_intensity,bar);
-        Vec3f n = proj<3>(uniform_MIT*embed<4>(model->normal(uv))).normalize();
-        //std::cout << 4 << std::endl;
-        //std::cout << "shader: n" << n << std::endl;
-        float tot_ity = std::max(0.01f,dot(n,-light_dir));
-        color = c*tot_ity; 
-        return false;    
-        // Vec3f bn = (varying_nrm*bar).normalize();
-        // Vec2f uv = varying_uv*bar;
+        // Vec2f uv = varying_uv * bar;
+        // TGAColor c = model->diffuse(uv);
+        // //float intensity = dot(varying_intensity,bar);
+        // Vec3f n = proj<3>(uniform_MIT*embed<4>(model->normal(uv))).normalize();
+        // //std::cout << 4 << std::endl;
+        // //std::cout << "shader: n" << n << std::endl;
+        // float tot_ity = std::max(0.01f,dot(n,-light_dir));
+        // color = c*tot_ity; 
+        // return false;    
+        Vec3f bn = (varying_nrm*bar).normalize();
+        Vec2f uv = varying_uv*bar;
 
-        // mat<3,3,float> A;
-        // A[0] = ndc_tri.col(1) - ndc_tri.col(0);
-        // A[1] = ndc_tri.col(2) - ndc_tri.col(0);
-        // A[2] = bn;
+        mat<3,3,float> A;
+        A[0] = ndc_tri.col(1) - ndc_tri.col(0);
+        A[1] = ndc_tri.col(2) - ndc_tri.col(0);
+        A[2] = bn;
 
-        // mat<3,3,float> AI = A.invert();
+        mat<3,3,float> AI = A.invert();
 
-        // Vec3f i = AI * Vec3f(varying_uv[0][1] - varying_uv[0][0], varying_uv[0][2] - varying_uv[0][0], 0);
-        // Vec3f j = AI * Vec3f(varying_uv[1][1] - varying_uv[1][0], varying_uv[1][2] - varying_uv[1][0], 0);
+        Vec3f i = AI * Vec3f(varying_uv[0][1] - varying_uv[0][0], varying_uv[0][2] - varying_uv[0][0], 0);
+        Vec3f j = AI * Vec3f(varying_uv[1][1] - varying_uv[1][0], varying_uv[1][2] - varying_uv[1][0], 0);
 
-        // mat<3,3,float> B;
-        // B.set_col(0, i.normalize());
-        // B.set_col(1, j.normalize());
-        // B.set_col(2, bn);
+        mat<3,3,float> B;
+        B.set_col(0, i.normalize());
+        B.set_col(1, j.normalize());
+        B.set_col(2, bn);
 
-        // Vec3f n = (B*model->normal_tan(uv)).normalize();
+        Vec3f n = (B*model->normal_tan(uv)).normalize();
 
-        // float diff = std::max(0.f, dot(n,light_dir));
-        // color = model->diffuse(uv)*diff;
+        float diff = std::max(0.f, dot(n,-light_dir));
+        color = model->diffuse(uv)*diff;
 
-        // return false;
+        return false;
     }
 };
 

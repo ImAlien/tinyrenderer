@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-11 16:11:48
+ * @LastEditTime: 2023-03-11 17:16:48
  */
 #include "my_gl.h"
 #include "shader.h"
@@ -10,6 +10,7 @@ extern Model *model;
 extern Matrix Projection,ViewPort, ModelView;
 extern mat<4,4,float> uniform_M;   //  Projection*ModelView
 extern mat<4,4,float> uniform_MIT; // (Projection*ModelView).invert_transpose()
+extern mat<4,4,float> uniform_VPM; 
 extern int depth;
 extern Vec3f light_dir;
 Matrix viewport(int x, int y, int w, int h) {
@@ -131,9 +132,8 @@ void triangle_zbuffer(std::vector<Vec3i> face,GouraudShader& shader, TGAImage& z
     Vec2f uvs[3];
     for (int i=0; i<3; i++) {
         const Vec3f &v = model->vert(face[i][0]);
-        pts[i] = m2v(ViewPort*Projection*ModelView*v2m(v));
-        pt4[i] = m2v4(ViewPort*Projection*ModelView*v2m(v));
-        uvs[i] = model->get_uv(face[i][1]);
+        pts[i] = m2v(uniform_VPM*v2m(v));
+        pt4[i] = m2v4(uniform_VPM*v2m(v));
         Vec3f vn = model->vn(face[i][2]);
         shader.vertex(face, i);
     }
@@ -165,17 +165,15 @@ void triangle_zbuffer(std::vector<Vec3i> face,GouraudShader& shader, TGAImage& z
             float tot_ity = 0;
             for (int i=0; i<3; i++) {
                 P.z += pts[i][2]*bc_clip[i];
-                uvf[0] += uvs[i][0] * bc_clip[i];
-                uvf[1] += uvs[i][1] * bc_clip[i];
             }
             // tht point's normal
-            Vec3f n = proj<3>(uniform_MIT*embed<4>(model->normal(uvf))).normalize();
+            //Vec3f n = proj<3>(uniform_MIT*embed<4>(model->normal(uvf))).normalize();
             
-            tot_ity = std::max(0.01f,dot(n,-light_dir));
+            //tot_ity = std::max(0.01f,dot(n,-light_dir));
             if (zbuffer.get(P.x, P.y)[0]<P.z) {
                 zbuffer.set(P.x, P.y,TGAColor(P.z ));
-                TGAColor color = model->diffuse(uvf)*tot_ity;
-                //TGAColor color;
+                //TGAColor color = model->diffuse(uvf)*tot_ity;
+                TGAColor color;
                 shader.fragment(bc_clip, color);
                 
                 //image.set(P.x, P.y, TGAColor);
