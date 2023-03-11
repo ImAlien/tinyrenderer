@@ -2,17 +2,16 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-11 10:09:21
+ * @LastEditTime: 2023-03-11 16:11:48
  */
 #include "my_gl.h"
-
+#include "shader.h"
 extern Model *model;
 extern Matrix Projection,ViewPort, ModelView;
 extern mat<4,4,float> uniform_M;   //  Projection*ModelView
 extern mat<4,4,float> uniform_MIT; // (Projection*ModelView).invert_transpose()
 extern int depth;
 extern Vec3f light_dir;
-
 Matrix viewport(int x, int y, int w, int h) {
     Matrix m = Matrix::identity();
     m[0][3] = x+w/2.f;
@@ -126,18 +125,17 @@ Matrix v2m(Vec3f v) {
     m[3][0] = 1.f;
     return m;
 }
-void triangle_zbuffer(std::vector<Vec3i> face, TGAImage& zbuffer, TGAImage &image, float intensity) {
+void triangle_zbuffer(std::vector<Vec3i> face,GouraudShader& shader, TGAImage& zbuffer, TGAImage &image, float intensity) {
     Vec3f pts[3];
     Vec4f pt4[3];
     Vec2f uvs[3];
-    float itys[3];
     for (int i=0; i<3; i++) {
         const Vec3f &v = model->vert(face[i][0]);
         pts[i] = m2v(ViewPort*Projection*ModelView*v2m(v));
         pt4[i] = m2v4(ViewPort*Projection*ModelView*v2m(v));
         uvs[i] = model->get_uv(face[i][1]);
         Vec3f vn = model->vn(face[i][2]);
-        itys[i] = dot(vn.normalize(), -light_dir);
+        shader.vertex(face, i);
     }
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
@@ -160,7 +158,6 @@ void triangle_zbuffer(std::vector<Vec3i> face, TGAImage& zbuffer, TGAImage &imag
             }
             float Z_n = 1. / (bc_clip[0] + bc_clip[1] + bc_clip[2]);
             bc_clip = bc_clip*Z_n;
-            //bc_clip = bc_clip;
             if (bc_clip.x<0 || bc_clip.y<0 || bc_clip.z<0) continue;
             P.z = 0;
             // z can be calculated by barycentric 
@@ -170,15 +167,19 @@ void triangle_zbuffer(std::vector<Vec3i> face, TGAImage& zbuffer, TGAImage &imag
                 P.z += pts[i][2]*bc_clip[i];
                 uvf[0] += uvs[i][0] * bc_clip[i];
                 uvf[1] += uvs[i][1] * bc_clip[i];
-                tot_ity += itys[i]*bc_clip[i];
             }
-            tot_ity = std::max(tot_ity,0.f);
+            // tht point's normal
             Vec3f n = proj<3>(uniform_MIT*embed<4>(model->normal(uvf))).normalize();
+            
             tot_ity = std::max(0.01f,dot(n,-light_dir));
             if (zbuffer.get(P.x, P.y)[0]<P.z) {
                 zbuffer.set(P.x, P.y,TGAColor(P.z ));
-                TGAColor color = model->diffuse(uvf);
-                image.set(P.x, P.y, TGAColor(color.r*tot_ity, color.g*tot_ity, color.b*tot_ity));
+                TGAColor color = model->diffuse(uvf)*tot_ity;
+                //TGAColor color;
+                shader.fragment(bc_clip, color);
+                
+                //image.set(P.x, P.y, TGAColor);
+                image.set(P.x, P.y, TGAColor(color.r, color.g, color.b));
             }
         }
     }

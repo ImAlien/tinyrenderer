@@ -43,6 +43,7 @@ Model::Model(const char *filename) : verts_(), faces_(), norms_(), uv_() {
     std::cerr << "# v# " << verts_.size() << " f# "  << faces_.size() << " vt# " << uv_.size() << " vn# " << norms_.size() << std::endl;
     load_texture(filename, "_diffuse.tga", diffusemap_);
     load_texture(filename, "_nm.tga", normalmap  );
+    load_texture(filename, "_nm_tangent.tga",   normalmap_tan);
     //load_texture(filename, "_spec.tga",       specularmap);
 }
 
@@ -77,6 +78,11 @@ Vec3f Model::normal(const Vec2f &uvf) {
     //[-1,1] ~~~ [0, 255]
     return Vec3f((float)c[2],(float)c[1],(float)c[0] )*2./255. - Vec3f(1,1,1);
     //return Vec3f( (float)c[2],(float)c[1],(float)c[0] )/255.;//error
+}
+Vec3f Model::normal_tan(const Vec2f &uvf) {
+    TGAColor c = normalmap_tan.get(uvf[0]*normalmap_tan.width, uvf[1]*normalmap_tan.height);
+    //[-1,1] ~~~ [0, 255]
+    return Vec3f((float)c[2],(float)c[1],(float)c[0] )*2./255. - Vec3f(1,1,1);
 }
 void Model::load_texture(std::string filename, const char *suffix, TGAImage &img) {
     std::string texfile(filename);

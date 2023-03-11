@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 23:35:24
+ * @LastEditTime: 2023-03-11 16:09:49
  */
 #include <vector>
 #include <cmath>
@@ -12,6 +12,7 @@
 #include "geometry.h"
 #include "def.h"
 #include "my_gl.h"
+#include "shader.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
@@ -28,7 +29,6 @@ Vec3f light_dir = Vec3f(-0.5,0,-1).normalize();
 Vec3f eye(1,1,3);
 Vec3f center(0,0,1);
 Vec3f camera(0,0,3);
-
 
 int main(int argc, char** argv) {
     if (2==argc) {
@@ -48,6 +48,7 @@ int main(int argc, char** argv) {
     Projection[3][2] = -1.f/(eye-center).norm();
     uniform_M   =  Projection*ModelView;
     uniform_MIT = (Projection*ModelView).invert_transpose();
+    GouraudShader shader;
     for (int i=0; i<model->nfaces(); i++) {
         // traverse all face
         // three points' index;
@@ -64,7 +65,7 @@ int main(int argc, char** argv) {
         float intensity = dot(n, light_dir);
         //if (intensity>0) {
             //triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
-            triangle_zbuffer(face, zbuffer, image, intensity);
+            triangle_zbuffer(face, shader, zbuffer, image, intensity);
         //}
     }
     // for (int i=0; i<model->nfaces(); i++) { 
@@ -78,7 +79,7 @@ int main(int argc, char** argv) {
 	// }
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
-    image.write_tga_file("output_normalmap2.tga");
+    image.write_tga_file("output_normalmap3.tga");
     zbuffer.flip_vertically();
     zbuffer.write_tga_file("zbuffer.tga");
     delete model;

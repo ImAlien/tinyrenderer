@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:44:57
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 17:10:06
+ * @LastEditTime: 2023-03-11 11:36:34
  */
 #ifndef __IMAGE_H__
 #define __IMAGE_H__
@@ -34,7 +34,7 @@ struct TGAColor {
 			unsigned char b, g, r, a;
 		};
 		unsigned char raw[4];
-		unsigned char val;
+		int val;
 	};
 	int bytespp;
 
@@ -66,6 +66,12 @@ struct TGAColor {
 	unsigned char operator [](const int i){
 		return raw[i];
 	}
+	TGAColor operator *(float intensity) {
+        TGAColor res = *this;
+        intensity = (intensity>1.f?1.f:(intensity<0.f?0.f:intensity));
+        for (int i=0; i<3; i++) res.raw[i] = raw[i]*intensity;
+        return res;
+    }
 };
 
 
