@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 11:12:23
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-08 22:57:06
+ * @LastEditTime: 2023-03-10 16:28:27
 -->
 
 ## lesson 0
@@ -27,4 +27,6 @@ geometry.h change to lesson2?
 
 reference:
 [从零构建光栅器，tinyrenderer笔记（上）](https://zhuanlan.zhihu.com/p/399056546)
+
+[透视插值](https://zhuanlan.zhihu.com/p/403259571)
 

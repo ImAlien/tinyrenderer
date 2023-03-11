@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:43:34
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 15:57:51
+ * @LastEditTime: 2023-03-10 23:35:24
  */
 #include <vector>
 #include <cmath>
@@ -18,12 +18,14 @@ const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green = TGAColor(0,   255, 0,   255);
 Model *model = NULL;
 Matrix Projection,ViewPort, ModelView;
+mat<4,4,float> uniform_M;   //  Projection*ModelView
+mat<4,4,float> uniform_MIT; // (Projection*ModelView).invert_transpose()
 int width  = 800;
 int height = 800;
 int depth = 255;
 int *zbuffer = NULL;
-Vec3f light_dir(-1,-1,-1);
-Vec3f eye(0.5,1,2);
+Vec3f light_dir = Vec3f(-0.5,0,-1).normalize();
+Vec3f eye(1,1,3);
 Vec3f center(0,0,1);
 Vec3f camera(0,0,3);
 
@@ -44,6 +46,8 @@ int main(int argc, char** argv) {
     Projection = Matrix::identity();
     ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
     Projection[3][2] = -1.f/(eye-center).norm();
+    uniform_M   =  Projection*ModelView;
+    uniform_MIT = (Projection*ModelView).invert_transpose();
     for (int i=0; i<model->nfaces(); i++) {
         // traverse all face
         // three points' index;
@@ -58,10 +62,10 @@ int main(int argc, char** argv) {
         Vec3f n = cross((world_coords[2]-world_coords[0]),(world_coords[1]-world_coords[0]));
         n.normalize();
         float intensity = dot(n, light_dir);
-        if (intensity>0) {
+        //if (intensity>0) {
             //triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
             triangle_zbuffer(face, zbuffer, image, intensity);
-        }
+        //}
     }
     // for (int i=0; i<model->nfaces(); i++) { 
 	//     std::vector<int> face = model->face(i); 
@@ -74,7 +78,8 @@ int main(int argc, char** argv) {
 	// }
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
-    image.write_tga_file("output.tga");
+    image.write_tga_file("output_normalmap2.tga");
+    zbuffer.flip_vertically();
     zbuffer.write_tga_file("zbuffer.tga");
     delete model;
     return 0;

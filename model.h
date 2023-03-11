@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 22:28:51
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 15:43:37
+ * @LastEditTime: 2023-03-10 17:21:29
  */
 #ifndef __MODEL_H__
 #define __MODEL_H__
@@ -18,7 +18,9 @@ private:
 	std::vector<Vec3f> norms_;
 	std::vector<Vec2f> uv_;
 	TGAImage diffusemap_;
-	void load_texture(std::string filename, const char *suffix, TGAImage &img);
+	TGAImage normalmap;          // normal map texture
+    TGAImage specularmap_;        // specular map texture
+    void load_texture(std::string filename, const char *suffix, TGAImage &img);
 public:
 	Model(const char *filename);
 	~Model();
@@ -30,6 +32,7 @@ public:
 	Vec2f get_uv(int i);
 	Vec2i uv(int iface, int nvert);
 	Vec3f normal(int iface, int nvert);
+	Vec3f normal(const Vec2f &uvf);                     // fetch the normal vector from the normal map texture
 	TGAColor diffuse(Vec2i uv);
 	TGAColor diffuse(Vec2f uv);
 	std::vector<Vec3i> face(int idx);

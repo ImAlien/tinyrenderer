@@ -2,7 +2,7 @@
  * @Author: Alien
  * @Date: 2023-03-08 10:44:57
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 15:03:14
+ * @LastEditTime: 2023-03-10 17:10:06
  */
 #ifndef __IMAGE_H__
 #define __IMAGE_H__
@@ -70,7 +70,7 @@ struct TGAColor {
 
 
 class TGAImage {
-protected:
+public:
 	unsigned char* data;
 	int width;
 	int height;

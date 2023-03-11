@@ -2,12 +2,14 @@
  * @Author: Alien
  * @Date: 2023-03-09 14:17:56
  * @LastEditors: Alien
- * @LastEditTime: 2023-03-10 16:17:39
+ * @LastEditTime: 2023-03-11 10:09:21
  */
 #include "my_gl.h"
 
 extern Model *model;
 extern Matrix Projection,ViewPort, ModelView;
+extern mat<4,4,float> uniform_M;   //  Projection*ModelView
+extern mat<4,4,float> uniform_MIT; // (Projection*ModelView).invert_transpose()
 extern int depth;
 extern Vec3f light_dir;
 
@@ -150,30 +152,29 @@ void triangle_zbuffer(std::vector<Vec3i> face, TGAImage& zbuffer, TGAImage &imag
     for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
         for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
             Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
-            Vec3f c_revised;
+            Vec3f bc_clip;
             for (int i = 0; i < 3; ++i)
             {
                 //求α，β，γ,只需要除以pts第四个分量即可
-                c_revised[i] = bc_screen[i] / pt4[i][3];
+                bc_clip[i] = bc_screen[i] / pt4[i][3];
             }
-            float Z_n = 1. / (c_revised[0] + c_revised[1] + c_revised[2]);
-            for (int i = 0; i < 3; ++i)
-            {
-                //求正确透视下插值的系数
-                c_revised[i] *= Z_n;
-            }
-            bc_screen = c_revised;
-            if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
+            float Z_n = 1. / (bc_clip[0] + bc_clip[1] + bc_clip[2]);
+            bc_clip = bc_clip*Z_n;
+            //bc_clip = bc_clip;
+            if (bc_clip.x<0 || bc_clip.y<0 || bc_clip.z<0) continue;
             P.z = 0;
             // z can be calculated by barycentric 
             Vec2f uvf;
             float tot_ity = 0;
             for (int i=0; i<3; i++) {
-                P.z += pts[i][2]*bc_screen[i];
-                uvf[0] += uvs[i][0] * bc_screen[i];
-                uvf[1] += uvs[i][1] * bc_screen[i];
-                tot_ity += itys[i]*bc_screen[i];
+                P.z += pts[i][2]*bc_clip[i];
+                uvf[0] += uvs[i][0] * bc_clip[i];
+                uvf[1] += uvs[i][1] * bc_clip[i];
+                tot_ity += itys[i]*bc_clip[i];
             }
+            tot_ity = std::max(tot_ity,0.f);
+            Vec3f n = proj<3>(uniform_MIT*embed<4>(model->normal(uvf))).normalize();
+            tot_ity = std::max(0.01f,dot(n,-light_dir));
             if (zbuffer.get(P.x, P.y)[0]<P.z) {
                 zbuffer.set(P.x, P.y,TGAColor(P.z ));
                 TGAColor color = model->diffuse(uvf);
